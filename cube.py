@@ -7,19 +7,19 @@ import numpy as np
 def align_images(images, size):
     h, w = images[0].shape[:2]
 
-    front = np.zeros((size,size))
-    side = np.zeros((size,size))
-    top = np.zeros((size,size))
+    front = np.zeros((size, size))
+    side = np.zeros((size, size))
+    top = np.zeros((size, size))
 
     img = images[0]
 
     front[:img.shape[0], :img.shape[1]] = img
 
     dh, dw = images[1].shape[:2]
-    img = cv2.resize(images[1], (int((dw / dh) * h), h))
+    img = cv2.resize(images[1], (int((dw / dh) * h) or 1, h or 1))
     side[:img.shape[0], :img.shape[1]] = img
 
-    img = cv2.resize(images[2], (w, int((dw / dh) * h)))
+    img = cv2.resize(images[2], (w or 1, int((dw / dh) * h) or 1))
     top[:img.shape[0], :img.shape[1]] = img
 
     return [front, side, top]

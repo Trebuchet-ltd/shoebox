@@ -72,31 +72,47 @@ def draw_mesh(vertex_dict, vertex_array):
 
     mesh.from_pydata(vertex_array, [], faces)
 
-    bpy.context.view_layer.objects.active = obj
+    return obj
 
 
 def create_bones(points: List[List[Tuple[float, float, float]]]):
-    arm_obj = bpy.data.objects['Armature']
-    # must be in edit mode to add bones
-    bpy.ops.object.select_all(action='DESELECT')
-    arm_obj.select_set(True)
-    bpy.context.view_layer.objects.active = arm_obj
+    bpy.ops.object.armature_add(enter_editmode=True, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+    arm_obj = bpy.data.objects["Armature"].data
 
-    # bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    # edit_bones = arm_obj.data.edit_bones
-    #
-    # index = 0
-    #
-    # for point in points:
-    #     b = edit_bones.new(f'bone{index}')
-    #     # a new bone will have zero length and not be kept
-    #     # move the head/tail to keep the bone
-    #     b.head = point[0]
-    #     b.tail = point[1]
-    #
-    #     index += 1
-    #
-    # bpy.ops.object.mode_set(mode='OBJECT')
+    # must be in edit mode to add bones
+    index = 0
+
+    for point in points:
+        b = arm_obj.edit_bones.new(f'bone{index}')
+        # a new bone will have zero length and not be kept
+        # move the head/tail to keep the bone
+        b.head = point[0]
+        b.tail = point[1]
+
+        print(point)
+
+        index += 1
+
+    for obj in arm_obj.edit_bones:
+        obj.select_head = False
+        obj.select_tail = False
+
+    return arm_obj
+
+
+def parent_mesh(mesh, armature):
+    for obj in bpy.data.objects:
+        obj.select_set(False)
+
+    bpy.data.objects["Armature"].select_set(True)
+    bpy.context.view_layer.objects.active = bpy.data.objects["Armature"]
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.data.objects["Armature"].select_set(True)
+    # the active object will be the parent of all selected object
+    bpy.context.view_layer.objects.active = bpy.data.objects["Armature"]
+
+    bpy.ops.object.parent_set(type='BONE', keep_transform=True)
 
 
 def calculate_angles(images):
@@ -142,20 +158,58 @@ def run_in_loop(images, size):
     cv2.waitKey()
 
 
+def get_nonzero_bounds(image):
+    left, right = -1, -1
+    top, bottom = -1, -1
+
+    for i in range(image.shape[0]):
+        if any(image[i]):
+            if top == -1:
+                top = i
+            else:
+                bottom = i
+
+    for i in range(image.shape[1]):
+        if any(image[i]):
+            if left == -1:
+                left = i
+            else:
+                right = i
+
+    return {"top": top, "bottom": bottom, "left": left, "right": right}
+
+
+def get_mid_point(points):
+    x = (points["left"] + points["right"]) / 2
+    y = (points["top"] + points["bottom"]) / 2
+
+    return {"x": x, "y": y}
+
+
 def main(size=64):
     videos = [cv2.VideoCapture(path) for path in ["data/front.mp4", "data/side.mp4", "data/top.mp4"]]
     image_generator = get_next_processed_frame(videos, (size, size))
 
-    first_images = next(image_generator)
-    cube = create_cube(first_images, size)
+    cube = create_cube(next(image_generator), size)
+
+    bounds = [get_nonzero_bounds(image) for image in [cube[10, :, :], cube[:, 10, :], cube[:, :, 10]]]
+    mid_points = [get_mid_point(bound) for bound in bounds]
+
+    armature = create_bones([
+        [
+            (bounds[1]["bottom"], bounds[2]["left"], mid_points[0]["y"] - size / 2),
+            (bounds[1]["bottom"], bounds[1]["right"], mid_points[0]["y"] - size / 2)
+        ],
+        [
+            (bounds[1]["bottom"], bounds[1]["right"], mid_points[0]["y"] - size / 2),
+            (bounds[1]["top"], bounds[2]["right"], mid_points[0]["y"] - size / 2)
+        ]
+    ])
 
     vertex_dict, vertex_array = get_edges(cube)
-    draw_mesh(vertex_dict, vertex_array)
+    mesh = draw_mesh(vertex_dict, vertex_array)
 
-    create_bones([
-        [(first_images[0].shape[1] / 2, first_images[0].shape[0] / 2, 0),
-         (first_images[0].shape[1] / 2, first_images[0].shape[0] / 2, 0)]
-    ])
+    parent_mesh(mesh, armature)
 
     for images in image_generator:
         run_in_loop(images, size)
