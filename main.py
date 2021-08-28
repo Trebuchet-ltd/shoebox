@@ -76,8 +76,10 @@ def draw_mesh(vertex_dict, vertex_array):
 
 
 def create_bones(points: List[List[Tuple[float, float, float]]]):
+    armature_name = "Armature"
+
     bpy.ops.object.armature_add(enter_editmode=True, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
-    arm_obj = bpy.data.objects["Armature"].data
+    arm_obj = bpy.data.objects[armature_name].data
 
     # must be in edit mode to add bones
     index = 0
@@ -89,30 +91,38 @@ def create_bones(points: List[List[Tuple[float, float, float]]]):
         b.head = point[0]
         b.tail = point[1]
 
-        print(point)
-
         index += 1
+
+    for bone in arm_obj.edit_bones:
+        if bone.name == "Bone":
+            arm_obj.edit_bones.remove(bone)
 
     for obj in arm_obj.edit_bones:
         obj.select_head = False
         obj.select_tail = False
 
-    return arm_obj
+    return armature_name
 
 
 def parent_mesh(mesh, armature):
+    bpy.data.objects[armature].data.edit_bones['bone1'].parent = \
+        bpy.data.objects[armature].data.edit_bones['bone0']
+
     for obj in bpy.data.objects:
         obj.select_set(False)
 
-    bpy.data.objects["Armature"].select_set(True)
-    bpy.context.view_layer.objects.active = bpy.data.objects["Armature"]
+    mesh.select_set(True)
+    bpy.data.objects[armature].select_set(True)
+    bpy.context.view_layer.objects.active = bpy.data.objects[armature]
 
     bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.data.objects["Armature"].select_set(True)
-    # the active object will be the parent of all selected object
-    bpy.context.view_layer.objects.active = bpy.data.objects["Armature"]
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
 
-    bpy.ops.object.parent_set(type='BONE', keep_transform=True)
+    for obj in bpy.data.objects:
+        obj.select_set(False)
+
+    bpy.data.objects[armature].select_set(True)
+    bpy.ops.object.mode_set(mode='POSE')
 
 
 def calculate_angles(images):
@@ -211,13 +221,9 @@ def main(size=64):
 
     parent_mesh(mesh, armature)
 
-    for images in image_generator:
-        run_in_loop(images, size)
-
-    for video in videos:
-        video.release()
+    t1 = threading.Thread(target=lambda: [run_in_loop(images, size) for images in image_generator])
+    t1.start()
 
 
 if __name__ == '__main__':
-    t1 = threading.Thread(target=main)
-    t1.start()
+    main()
