@@ -1,3 +1,4 @@
+import math
 import threading
 from typing import List, Tuple
 
@@ -7,6 +8,7 @@ from scipy import signal
 
 try:
     import bpy
+    import mathutils
     from cube import create_cube
     from image import get_next_processed_frame
 except ImportError:
@@ -159,13 +161,23 @@ def collapse_cube(cube):
     return [np.sum(cube[:, layer:, :], axis=i, dtype="uint8") for i in range(3)]
 
 
-def run_in_loop(images, size):
+def set_rotation(bone, rot, axis='X'):
+    mat_rot = mathutils.Matrix.Rotation(math.radians(rot), 4, axis)
+    bone.matrix = mat_rot
+
+
+def run_in_loop(images, size, bones):
     cube = create_cube(images, size)
 
     shadows = collapse_cube(cube)
     angles = calculate_angles(shadows)
 
-    cv2.waitKey()
+    if angles is None:
+        return
+
+    set_rotation(bones["bone1"], angles[0], axis="X")
+    set_rotation(bones["bone1"], angles[1], axis="Z")
+    set_rotation(bones["bone0"], angles[0], axis="Y")
 
 
 def get_nonzero_bounds(image):
@@ -186,6 +198,10 @@ def get_nonzero_bounds(image):
             else:
                 right = i
 
+    for i in [left, top, bottom, right]:
+        if i == -1:
+            i = None
+
     return {"top": top, "bottom": bottom, "left": left, "right": right}
 
 
@@ -196,32 +212,47 @@ def get_mid_point(points):
     return {"x": x, "y": y}
 
 
+def get_bone_points(cube, size):
+    front = get_nonzero_bounds(cube[0, :, :])
+    top = get_nonzero_bounds(cube[:, 20, :])
+    side = {"top": size, "bottom": 0, "left": size, "right": 0}
+
+    for i in range(size):
+        bounds = get_nonzero_bounds(cube[:, :, i])
+        side["top"] = min(side["top"], bounds["top"] or size)
+        side["right"] = max(side["right"], bounds["right"] or -1)
+        side["bottom"] = max(side["bottom"], bounds["bottom"] or -1)
+        side["left"] = min(side["left"], bounds["left"] or size)
+
+    mid_points = [get_mid_point(bound) for bound in [front, side, top]]
+
+    return [
+        [
+            (side["right"], side["top"], mid_points[2]["y"] - size / 4),
+            (side["right"], side["bottom"], mid_points[2]["y"] - size / 4)
+        ],
+        [
+            (side["right"], side["bottom"], mid_points[2]["y"] - size / 4),
+            (side["left"], mid_points[0]["y"], mid_points[2]["y"] - size / 4)
+        ]
+    ]
+
+
 def main(size=64):
     videos = [cv2.VideoCapture(path) for path in ["data/front.mp4", "data/side.mp4", "data/top.mp4"]]
     image_generator = get_next_processed_frame(videos, (size, size))
 
     cube = create_cube(next(image_generator), size)
-
-    bounds = [get_nonzero_bounds(image) for image in [cube[10, :, :], cube[:, 10, :], cube[:, :, 10]]]
-    mid_points = [get_mid_point(bound) for bound in bounds]
-
-    armature = create_bones([
-        [
-            (bounds[1]["bottom"], bounds[2]["left"], mid_points[0]["y"] - size / 2),
-            (bounds[1]["bottom"], bounds[1]["right"], mid_points[0]["y"] - size / 2)
-        ],
-        [
-            (bounds[1]["bottom"], bounds[1]["right"], mid_points[0]["y"] - size / 2),
-            (bounds[1]["top"], bounds[2]["right"], mid_points[0]["y"] - size / 2)
-        ]
-    ])
-
     vertex_dict, vertex_array = get_edges(cube)
+
+    armature = create_bones(get_bone_points(cube, size))
     mesh = draw_mesh(vertex_dict, vertex_array)
 
     parent_mesh(mesh, armature)
 
-    t1 = threading.Thread(target=lambda: [run_in_loop(images, size) for images in image_generator])
+    t1 = threading.Thread(
+        target=lambda: [run_in_loop(images, size, bpy.data.objects["Armature"].pose.bones) for images in
+                        image_generator])
     t1.start()
 
 
