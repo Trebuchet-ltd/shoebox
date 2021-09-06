@@ -99,9 +99,18 @@ def parent_mesh(mesh, armature):
     bpy.ops.object.mode_set(mode='POSE')
 
 
-def main(size=64):
-    videos = [cv2.VideoCapture(path) for path in ["data/front.mp4", "data/side.mp4", "data/top.mp4"]]
+def get_bone_rotation(bone):
+    mat = bone.matrix.to_euler()
+    return [math.degrees(mat.x), math.degrees(mat.y), math.degrees(mat.z)]
+
+
+def main(video_paths, size=64):
+    print("a")
+    videos = [cv2.VideoCapture(path) for path in video_paths]
     image_generator = get_next_processed_frame(videos, (size, size))
+
+    for i in range(10):
+        next(image_generator)
 
     cube = create_cube(next(image_generator), size)
     vertex_dict, vertex_array = get_edges(cube)
@@ -111,11 +120,13 @@ def main(size=64):
 
     parent_mesh(mesh, armature)
 
+    initial_angles = get_bone_rotation(bpy.data.objects["Armature"].pose.bones[1])
+
     t1 = threading.Thread(
-        target=lambda: [run_in_loop(images, size, bpy.data.objects["Armature"].pose.bones) for images in
-                        image_generator])
+        target=lambda: [run_in_loop(images, size, bpy.data.objects["Armature"].pose.bones, initial_angles)
+                        for images in image_generator])
     t1.start()
 
 
 if __name__ == '__main__':
-    main()
+    main(["data/front.mp4", "data/side.mp4", "data/top.mp4"])

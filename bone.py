@@ -1,32 +1,19 @@
 import numpy as np
-from typing import List,Tuple
+from typing import List, Tuple
 
 
 def get_nonzero_bounds(image):
-    left, right = -1, -1
-    top, bottom = -1, -1
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    for i in range(image.shape[0]):
-        if any(image[i]):
-            if top == -1:
-                top = i
-            else:
-                bottom = i
+    if len(contours) == 0:
+        return None
 
-    for i in range(image.shape[1]):
-        if any(image[i]):
-            if left == -1:
-                left = i
-            else:
-                right = i
+    segmented = max(contours, key=cv2.contourArea)
+    rect = cv2.minAreaRect(segmented)
 
-    ret = {"top": top, "bottom": bottom, "left": left, "right": right}
+    [[right, _], [_, top], [left, _], [_, bottom]] = np.int0(cv2.boxPoints(rect))
 
-    for key in ret:
-        if ret[key] == -1:
-            ret[key] = None
-
-    return ret
+    return {"right": right, "top": top, "left": left, "bottom": bottom}
 
 
 def get_mid_point(points):
@@ -39,25 +26,20 @@ def get_mid_point(points):
 def get_bone_points(cube, size):
     front = get_nonzero_bounds(cube[0, :, :])
     top = get_nonzero_bounds(cube[:, 20, :])
-    side = {"top": size, "bottom": 0, "left": size, "right": 0}
+    side = get_nonzero_bounds(np.sum(cube, axis=1, dtype="uint8"))
 
-    for i in range(size):
-        bounds = get_nonzero_bounds(cube[:, :, i])
-        side["top"] = min(side["top"], bounds["top"] or size)
-        side["right"] = max(side["right"], bounds["right"] or -1)
-        side["bottom"] = max(side["bottom"], bounds["bottom"] or -1)
-        side["left"] = min(side["left"], bounds["left"] or size)
+    print(front.values())
 
     mid_points = [get_mid_point(bound) for bound in [front, side, top]]
 
     return [
         [
-            (side["right"], side["top"], mid_points[2]["y"] - size / 4),
-            (side["right"], side["bottom"], mid_points[2]["y"] - size / 4)
+            (top["bottom"], side["top"], mid_points[2]["y"] - size / 4),
+            (top["bottom"], side["bottom"], mid_points[2]["y"] - size / 4)
         ],
         [
-            (side["right"], side["bottom"], mid_points[2]["y"] - size / 4),
-            (side["left"], mid_points[0]["y"], mid_points[2]["y"] - size / 4)
+            (top["bottom"], side["bottom"], mid_points[2]["y"] - size / 4),
+            (side["right"], mid_points[0]["y"], mid_points[2]["y"] - size / 4)
         ]
     ]
 

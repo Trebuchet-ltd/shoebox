@@ -39,7 +39,7 @@ def carve_out(cube, img_side, img_top):
 def create_cube(images: List[np.ndarray], size: int) -> np.ndarray:
     images = align_images(images, size)
 
-    cube = np.tile(images[0], (size, 1, 1))
+    cube = np.tile(images[0], (size, 1, 1)).astype("uint8")
     cube = carve_out(cube, images[1], images[2])
 
     return cube
