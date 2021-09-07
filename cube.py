@@ -4,6 +4,30 @@ import cv2
 import numpy as np
 
 
+def get_contours_and_crop(images):
+    ret_images = []
+    bounds = []
+
+    for image in images:
+        contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        contour = None
+        max_area = 0
+
+        for cnt in contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            if w * h > max_area:
+                max_area = w * h
+                contour = cnt
+
+        x, y, w, h = cv2.boundingRect(contour)
+
+        ret_images.append(image[y:y + h, x:x + w])
+        bounds.append({"x": x, "y": y, "w": w, "h": h})
+
+    return ret_images, bounds
+
+
 def align_images(images, size):
     h, w = images[0].shape[:2]
 
@@ -36,10 +60,11 @@ def carve_out(cube, img_side, img_top):
     return cube
 
 
-def create_cube(images: List[np.ndarray], size: int) -> np.ndarray:
+def create_cube(images: List[np.ndarray], size: int):
+    images, bounds = get_contours_and_crop(images)
     images = align_images(images, size)
 
     cube = np.tile(images[0], (size, 1, 1)).astype("uint8")
     cube = carve_out(cube, images[1], images[2])
 
-    return cube
+    return cube, bounds

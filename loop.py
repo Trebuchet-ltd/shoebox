@@ -9,6 +9,12 @@ except ImportError:
     pass
 
 
+def bounds_to_location(bounds):
+    return mathutils.Vector((bounds[1]["x"] + bounds[1]["w"] / 2,
+                             bounds[0]["y"] + bounds[0]["h"] / 2,
+                             bounds[0]["x"] + bounds[0]["w"] / 2))
+
+
 def calculate_angles(images):
     angles = []
 
@@ -20,12 +26,6 @@ def calculate_angles(images):
 
         segmented = max(contours, key=cv2.contourArea)
         rect = cv2.minAreaRect(segmented)
-
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        image = cv2.drawContours(image, [box], 0, (255, 0, 255), 1)
-
-        cv2.imshow(f"Axis {images.index(image)}", image)
 
         angles.append(rect[2] if rect[2] < 90 else 0)
 
@@ -55,7 +55,6 @@ def collapse_cube(cube):
 
     for i in range(3):
         img = np.sum(cube[:, layer:, :], axis=i, dtype="uint8")
-        _, img = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
         ret.append(img)
 
     return ret
@@ -66,16 +65,27 @@ def set_bone_rotation(bone, rot, axis='X'):
     bone.matrix = mat_rot
 
 
-def run_in_loop(images, size, bones, initial_angles):
-    cube = create_cube(images, size)
+def render_image(path):
+    bpy.context.scene.render.image_settings.file_format = 'PNG'
+    bpy.context.scene.render.filepath = path
+    bpy.ops.render.render(write_still=1)
+
+    return cv2.imread(path, cv2.IMREAD_COLOR)
+
+
+def run_in_loop(images, size, bones, initial_angles, previous_bounds):
+    cube, bounds = create_cube(images, size)
+
+    previous_location = bounds_to_location(previous_bounds)
+    location = bounds_to_location(bounds)
 
     shadows = collapse_cube(cube)
     angles = calculate_angles(shadows)
 
     if angles is None:
-        return
+        return previous_bounds
 
-    cv2.waitKey()
+    bone0_loc = bones["bone0"].location + (location - previous_location)
 
     set_bone_rotation(bones["bone1"], angles[0] + initial_angles[0], axis="X")
     set_bone_rotation(bones["bone1"], angles[1] + initial_angles[1], axis="Y")
@@ -83,4 +93,9 @@ def run_in_loop(images, size, bones, initial_angles):
     set_bone_rotation(bones["bone0"], angles[1], axis="Y")
 
     bones["bone1"].location = (0, 0, 0)
-    bones["bone0"].location = (0, 0, 0)
+    bones["bone0"].location = bone0_loc
+
+    cv2.imshow("rendered", render_image("/tmp/image.png"))
+    cv2.waitKey()
+
+    return bounds

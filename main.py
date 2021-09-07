@@ -78,25 +78,47 @@ def draw_mesh(vertex_dict, vertex_array):
     return obj
 
 
-def parent_mesh(mesh, armature):
+def set_material(mesh):
+    mat = bpy.data.materials.get("Material")
+
+    if mesh.data.materials:
+        # assign to 1st material slot
+        mesh.data.materials[0] = mat
+    else:
+        # no slots
+        mesh.data.materials.append(mat)
+
+
+def scale_shoe(mesh, points):
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    shoe = bpy.data.objects["shoe"]
+    shoe.scale *= mesh.dimensions[0] / shoe.dimensions[0]
+    shoe.location += (mathutils.Vector(points[1][0]) + mathutils.Vector(points[1][1])) / 2
+
+    return shoe
+
+
+def set_parent(child, parent):
+    for obj in bpy.data.objects:
+        obj.select_set(False)
+
+    child.select_set(True)
+    bpy.data.objects[parent].select_set(True)
+    bpy.context.view_layer.objects.active = bpy.data.objects[parent]
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO', keep_transform=False)
+
+
+def parent_mesh(mesh, shoe, armature):
     bpy.data.objects[armature].data.edit_bones['bone1'].parent = \
         bpy.data.objects[armature].data.edit_bones['bone0']
 
-    for obj in bpy.data.objects:
-        obj.select_set(False)
-
-    mesh.select_set(True)
-    bpy.data.objects[armature].select_set(True)
-    bpy.context.view_layer.objects.active = bpy.data.objects[armature]
-
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-
-    for obj in bpy.data.objects:
-        obj.select_set(False)
+    set_parent(shoe, armature)
+    set_parent(mesh, armature)
 
     bpy.data.objects[armature].select_set(True)
-    bpy.ops.object.mode_set(mode='POSE')
 
 
 def get_bone_rotation(bone):
@@ -104,27 +126,31 @@ def get_bone_rotation(bone):
     return [math.degrees(mat.x), math.degrees(mat.y), math.degrees(mat.z)]
 
 
+def worker(image_generator, bounds, size):
+    initial_angles = get_bone_rotation(bpy.data.objects["Armature"].pose.bones[1])
+    for images in image_generator:
+        bounds = run_in_loop(images, size, bpy.data.objects["Armature"].pose.bones, initial_angles, bounds)
+
+
 def main(video_paths, size=64):
-    print("a")
     videos = [cv2.VideoCapture(path) for path in video_paths]
     image_generator = get_next_processed_frame(videos, (size, size))
 
     for i in range(10):
         next(image_generator)
 
-    cube = create_cube(next(image_generator), size)
+    cube, bounds = create_cube(next(image_generator), size)
     vertex_dict, vertex_array = get_edges(cube)
 
-    armature = create_armature(cube, size)
+    armature, points = create_armature(cube, size)
     mesh = draw_mesh(vertex_dict, vertex_array)
+    set_material(mesh)
 
-    parent_mesh(mesh, armature)
+    shoe = scale_shoe(mesh, points)
+    parent_mesh(mesh, shoe, armature)
 
-    initial_angles = get_bone_rotation(bpy.data.objects["Armature"].pose.bones[1])
-
-    t1 = threading.Thread(
-        target=lambda: [run_in_loop(images, size, bpy.data.objects["Armature"].pose.bones, initial_angles)
-                        for images in image_generator])
+    bpy.ops.object.mode_set(mode='POSE')
+    t1 = threading.Thread(target=worker, args=(image_generator, bounds, size))
     t1.start()
 
 

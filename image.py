@@ -322,20 +322,7 @@ def remove_background(images):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(image, 1, 1, cv2.THRESH_BINARY)
 
-        contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        contour = None
-        max_area = 0
-
-        for cnt in contours:
-            x, y, w, h = cv2.boundingRect(cnt)
-            if w * h > max_area:
-                max_area = w * h
-                contour = cnt
-
-        x, y, w, h = cv2.boundingRect(contour)
-
-        output.append(thresh[y:y + h, x:x + w])
+        output.append(thresh)
 
     return output
 

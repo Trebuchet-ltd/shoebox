@@ -28,25 +28,21 @@ def get_bone_points(cube, size):
     top = get_nonzero_bounds(cube[:, 20, :])
     side = get_nonzero_bounds(np.sum(cube, axis=1, dtype="uint8"))
 
-    print(front.values())
-
     mid_points = [get_mid_point(bound) for bound in [front, side, top]]
 
     return [
         [
-            (top["bottom"], side["top"], mid_points[2]["y"] - size / 4),
-            (top["bottom"], side["bottom"], mid_points[2]["y"] - size / 4)
+            (top["bottom"], side["top"], mid_points[2]["y"] / 4),
+            (top["bottom"], side["bottom"] - 5, mid_points[2]["y"] / 4)
         ],
         [
-            (top["bottom"], side["bottom"], mid_points[2]["y"] - size / 4),
-            (side["right"], mid_points[0]["y"], mid_points[2]["y"] - size / 4)
+            (top["bottom"], side["bottom"] - 5, mid_points[2]["y"] / 4),
+            (side["right"], mid_points[0]["y"] - 5, mid_points[2]["y"] / 4)
         ]
     ]
 
 
-def create_bones(points: List[List[Tuple[float, float, float]]]):
-    armature_name = "Armature"
-
+def create_bones(points: List[List[Tuple[float, float, float]]], armature_name: str):
     bpy.ops.object.armature_add(enter_editmode=True, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
     arm_obj = bpy.data.objects[armature_name].data
 
@@ -73,5 +69,6 @@ def create_bones(points: List[List[Tuple[float, float, float]]]):
     return armature_name
 
 
-def create_armature(cube: np.ndarray, size: int) -> str:
-    return create_bones(get_bone_points(cube, size))
+def create_armature(cube: np.ndarray, size: int) -> (str, []):
+    points = get_bone_points(cube, size)
+    return create_bones(points, "Armature"), points
