@@ -330,8 +330,9 @@ def remove_background(images):
 def get_next_processed_frame(videos: List[VideoCapture], size: (int, int)):
     while all([video.isOpened() for video in videos]):
         images = read_images(videos, size)
+        top = np.copy(images[2])
 
         if images is None:
             break
 
-        yield remove_background(images)
+        yield remove_background(images), top

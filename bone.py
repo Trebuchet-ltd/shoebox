@@ -33,11 +33,11 @@ def get_bone_points(cube, size):
     return [
         [
             (top["bottom"], side["top"], mid_points[2]["y"] / 4),
-            (top["bottom"], side["bottom"] - 5, mid_points[2]["y"] / 4)
+            (top["bottom"], side["bottom"] - 10, mid_points[2]["y"] / 4)
         ],
         [
-            (top["bottom"], side["bottom"] - 5, mid_points[2]["y"] / 4),
-            (side["right"], mid_points[0]["y"] - 5, mid_points[2]["y"] / 4)
+            (top["bottom"], side["bottom"] - 10, mid_points[2]["y"] / 4),
+            (side["right"], mid_points[0]["y"] - 10, mid_points[2]["y"] / 4)
         ]
     ]
 

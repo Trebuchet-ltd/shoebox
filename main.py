@@ -93,7 +93,7 @@ def scale_shoe(mesh, points):
     bpy.ops.object.mode_set(mode='OBJECT')
 
     shoe = bpy.data.objects["shoe"]
-    shoe.scale *= mesh.dimensions[0] / shoe.dimensions[0]
+    shoe.scale *= ((mesh.dimensions[0] / shoe.dimensions[0]) * 1.25)
     shoe.location += (mathutils.Vector(points[1][0]) + mathutils.Vector(points[1][1])) / 2
 
     return shoe
@@ -139,7 +139,7 @@ def main(video_paths, size=64):
     for i in range(10):
         next(image_generator)
 
-    cube, bounds = create_cube(next(image_generator), size)
+    cube, bounds = create_cube(next(image_generator)[0], size)
     vertex_dict, vertex_array = get_edges(cube)
 
     armature, points = create_armature(cube, size)

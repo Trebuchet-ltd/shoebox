@@ -74,7 +74,7 @@ def render_image(path):
 
 
 def run_in_loop(images, size, bones, initial_angles, previous_bounds):
-    cube, bounds = create_cube(images, size)
+    cube, bounds = create_cube(images[0], size)
 
     previous_location = bounds_to_location(previous_bounds)
     location = bounds_to_location(bounds)
@@ -95,7 +95,13 @@ def run_in_loop(images, size, bones, initial_angles, previous_bounds):
     bones["bone1"].location = (0, 0, 0)
     bones["bone0"].location = bone0_loc
 
-    cv2.imshow("rendered", render_image("/tmp/image.png"))
+    rendered = render_image("/tmp/image.png")
+
+    img = np.where((rendered[..., [0]] == 255) & (rendered[..., [1]] == 255) & (rendered[..., [2]] == 255),
+                   images[1], rendered)
+    img = img.astype(np.uint8)
+
+    cv2.imshow("overlay", img)
     cv2.waitKey()
 
     return bounds
