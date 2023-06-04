@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../3D Modeler/.idea/3D Modeler.iml" filepath="$PROJECT_DIR$/../3D Modeler/.idea/3D Modeler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/shoebox.iml" filepath="$PROJECT_DIR$/.idea/shoebox.iml" />
     </modules>
   </component>
 </project>

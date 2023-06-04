@@ -1,19 +1,30 @@
 import threading
 from typing import List, Tuple
 
-import numpy as np
-import cv2
-from scipy import signal
+import pip
+
+try:
+    import numpy as np
+    from cv2 import cv2
+    from scipy import signal
+except ImportError:
+    pip.main(['install', 'numpy'])
+    pip.main(['install', 'opencv-python'])
+    pip.main(['install', 'scipy'])
+
+    import numpy as np
+    from cv2 import cv2
+    from scipy import signal
 
 try:
     import bpy
     import mathutils
-    from cube import create_cube
-    from image import get_next_processed_frame
-    from bone import create_armature
-    from loop import run_in_loop
+    from .cube import create_cube
+    from .image import get_next_processed_frame
+    from .bone import create_armature
+    from .loop import run_in_loop
 except ImportError:
-    pass
+    print("errr")
 
 
 def get_edges(cube):

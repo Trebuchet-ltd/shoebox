@@ -1,7 +1,14 @@
 from typing import List
 
-import cv2
-import numpy as np
+import pip
+
+try:
+    import numpy as np
+    from cv2 import cv2
+except ImportError:
+    pip.main(['install', 'numpy'])
+    pip.main(['install', 'opencv-python'])
+    pip.main(['install', 'scipy'])
 
 
 def get_contours_and_crop(images):

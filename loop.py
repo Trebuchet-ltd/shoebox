@@ -1,6 +1,12 @@
 import math
-import cv2
-from time import sleep
+
+import pip
+
+try:
+    import cv2
+except ImportError:
+    pip.main(['install', 'opencv-python'])
+    import cv2
 
 try:
     import bpy
